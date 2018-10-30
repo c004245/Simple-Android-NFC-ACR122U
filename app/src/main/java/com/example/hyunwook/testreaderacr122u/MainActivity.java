@@ -36,12 +36,14 @@ public class MainActivity extends AppCompatActivity {
     private Spinner mReaderSpinner;
 
     private Features mFeatures = new Features();
-
+    String deviceName2;
     private static final String[] stateStrings = { "Unknown", "Absent",
             "Present", "Swallowed", "Powered", "Negotiable", "Specific" };
 
     static final String TAG = MainActivity.class.getSimpleName();
     private static final String ACTION_USB_PERMISSION = "com.android.example.USB_PERMISSION";
+
+    public boolean isOpened = false; //퇴근 장치 오픈되면 true
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -49,6 +51,11 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         mManager = (UsbManager) getSystemService(Context.USB_SERVICE);
+        //Open
+        mOpenButton = (Button) findViewById(R.id.main_button_open);
+        mOpenButton.setOnClickListener(l -> {
+
+        });
 
         //Initialize reader
         mReader = new Reader(mManager);
@@ -120,33 +127,26 @@ public class MainActivity extends AppCompatActivity {
             if (mReader.isSupported(device)) {
                 mReaderAdapter.add(device.getDeviceName());
                 Log.d(TAG, "device name -->" + device.getDeviceName());
+
             }
         }
         mReaderSpinner = (Spinner) findViewById(R.id.main_spinner_reader);
         mReaderSpinner.setAdapter(mReaderAdapter);
 
-        mListButton = (Button) findViewById(R.id.main_button_list);
-        mListButton.setOnClickListener(l -> {
-            mReaderAdapter.clear();
-            for (UsbDevice device : mManager.getDeviceList().values()) {
-                if (mReader.isSupported(device)) {
-                    mReaderAdapter.add(device.getDeviceName());
-                    Log.d(TAG, "list device getname ->" + device.getDeviceName());
-                }
-            }
+        boolean requested = false;
 
-        });
+        //disable open button
+        mOpenButton.setEnabled(false);
+//        String deviceName = (String) mReaderSpinner.getSelectedItem();
 
-        //Open
-        mOpenButton = (Button) findViewById(R.id.main_button_open);
-        mOpenButton.setOnClickListener(l -> {
-            boolean requested = false;
+        Log.d(TAG, "count ->" + mReaderAdapter.getCount());
+        int deviceCount = mReaderAdapter.getCount();
+        if (deviceCount == 0) {
+            Toast.makeText(getApplicationContext(), "카드 리더기 오류, 재 연결 해주세요.", Toast.LENGTH_LONG).show();
+        } else if (deviceCount == 1) {
+            String deviceName = mReaderAdapter.getItem(0);
 
-            //disable open button
-            mOpenButton.setEnabled(false);
-            String deviceName = (String) mReaderSpinner.getSelectedItem();
-
-            Log.d(TAG, "deviceName --->" + deviceName); //선택된 장치
+            Log.d(TAG, "Open Test --->" + deviceName); //선택된 장치
             if (deviceName != null) {
 
                 for (UsbDevice device : mManager.getDeviceList().values()) {
@@ -167,7 +167,54 @@ public class MainActivity extends AppCompatActivity {
                 //enable open button
                 mOpenButton.setEnabled(true);
             }
+        } else if (deviceCount == 2) {
+            //2개
+            String deviceName = mReaderAdapter.getItem(0);
+            deviceName2 = mReaderAdapter.getItem(1);
+
+            Log.d(TAG, "Open Test2 --->" + deviceName); // 선택된 장치
+            Log.d(TAG, "Open Test2 --->" + deviceName2); // 선택된 장치
+
+            if (deviceName != null && deviceName2 != null) {
+                for (UsbDevice device : mManager.getDeviceList().values()) {
+                    Log.d(TAG, "device ----->" + device.getDeviceName());
+
+                    //device name is found.
+                    if (deviceName.equals(device.getDeviceName())) {
+                        //Request permission
+                        Log.d(TAG, "Device 1 -> " +device.getDeviceName());
+                        mManager.requestPermission(device, mPermissionIntent);
+
+                        requested = true;
+                        break;
+                    }
+
+                  /*  if (deviceName2.equals(device.getDeviceName())) {
+                        //Request permission
+                        Log.d(TAG, "Device 2 -> " +device.getDeviceName());
+                        mManager.requestPermission(device, mPermissionIntent);
+
+                        requested = true;
+                        break;
+                    }*/
+                }
+            }
+
+        }
+
+
+        mListButton = (Button) findViewById(R.id.main_button_list);
+        mListButton.setOnClickListener(l -> {
+            mReaderAdapter.clear();
+            for (UsbDevice device : mManager.getDeviceList().values()) {
+                if (mReader.isSupported(device)) {
+                    mReaderAdapter.add(device.getDeviceName());
+                    Log.d(TAG, "list device getname ->" + device.getDeviceName());
+                }
+            }
+
         });
+
 
 
 
@@ -187,7 +234,7 @@ public class MainActivity extends AppCompatActivity {
 
                         if (device != null) {
                             //Open Reader
-                            Log.d(TAG, "OpenTask ...");
+                            Log.d(TAG, "OpenTask ...>" + device.getDeviceName());
                             new OpenTask().execute(device);
                         }
 
@@ -246,10 +293,27 @@ public class MainActivity extends AppCompatActivity {
                 //Add Slot items;
 //                mslo
                 // Remove all control codes
-                mFeatures.clear();
+//                mFeatures.clear();
 
+                Log.d(TAG, "next device -> " + deviceName2);
+                Log.d(TAG, "isOpened state -> " + isOpened);
 
+                if (!isOpened) {
 
+                    for (UsbDevice device : mManager.getDeviceList().values()) {
+
+                        if (deviceName2.equals(device.getDeviceName())) {
+                            //Request permission
+                            Log.d(TAG, "Device 2 -> " + device.getDeviceName());
+                            mManager.requestPermission(device, mPermissionIntent);
+
+                            break;
+                        }
+                        isOpened = true;
+                        mManager.requestPermission(device, mPermissionIntent);
+
+                    }
+                }
             }
         }
     }
