@@ -22,10 +22,6 @@ import com.acs.smartcard.Reader;
 import com.acs.smartcard.ReaderException;
 
 public class MainActivity extends AppCompatActivity {
-
-    private Button mListButton; //연결된 장치 리스트 확인
-    private Button mOpenButton; //장치 오픈
-
     private UsbManager mManager;
 
     private Reader mReader; //출근 장치
@@ -52,11 +48,6 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         mManager = (UsbManager) getSystemService(Context.USB_SERVICE);
-        //Open
-        mOpenButton = (Button) findViewById(R.id.main_button_open);
-        mOpenButton.setOnClickListener(l -> {
-
-        });
 
         //Initialize reader
         mReader = new Reader(mManager);
@@ -73,11 +64,6 @@ public class MainActivity extends AppCompatActivity {
                         || currState > Reader.CARD_SPECIFIC) {
                     currState = Reader.CARD_UNKNOWN;
                 }
-
-                // Create output string
-                final String outputString = "Slot " + slotNum + ": "
-                        + stateStrings[prevState] + " -> "
-                        + stateStrings[currState];
 
                 if (currState == Reader.CARD_PRESENT) {
                     Log.d(TAG, "Ready to read...");
@@ -129,11 +115,6 @@ public class MainActivity extends AppCompatActivity {
                         || currState > Reader.CARD_SPECIFIC) {
                     currState = Reader.CARD_UNKNOWN;
                 }
-
-                // Create output string
-                final String outputString = "Slot " + slotNum + ": "
-                        + stateStrings[prevState] + " -> "
-                        + stateStrings[currState];
 
                 if (currState == Reader.CARD_PRESENT) {
                     Log.d(TAG, "Ready to read2...");
@@ -187,13 +168,8 @@ public class MainActivity extends AppCompatActivity {
 
             }
         }
-        mReaderSpinner = (Spinner) findViewById(R.id.main_spinner_reader);
-        mReaderSpinner.setAdapter(mReaderAdapter);
-
-        boolean requested = false;
 
         //disable open button
-        mOpenButton.setEnabled(false);
 //        String deviceName = (String) mReaderSpinner.getSelectedItem();
 
         Log.d(TAG, "count ->" + mReaderAdapter.getCount());
@@ -214,16 +190,11 @@ public class MainActivity extends AppCompatActivity {
                         //Request permission
                         mManager.requestPermission(device, mPermissionIntent);
 
-                        requested = true;
                         break;
                     }
                 }
             }
 
-            if (!requested) {
-                //enable open button
-                mOpenButton.setEnabled(true);
-            }
         } else if (deviceCount == 2) {
             //2개
             String deviceName = mReaderAdapter.getItem(0);
@@ -242,7 +213,6 @@ public class MainActivity extends AppCompatActivity {
                         Log.d(TAG, "Device 1 -> " +device.getDeviceName());
                         mManager.requestPermission(device, mPermissionIntent);
 
-                        requested = true;
                         break;
                     }
                 }
@@ -274,7 +244,6 @@ public class MainActivity extends AppCompatActivity {
                         }
 
                     } else {
-                        mOpenButton.setEnabled(true);
                     }
                 }
             } else if (UsbManager.ACTION_USB_DEVICE_DETACHED.equals(action)) {
@@ -357,54 +326,17 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    //Reader Device OpenTask
-    private class OpenTask2 extends AsyncTask<UsbDevice, Void, Exception> {
-
-        @Override
-        protected Exception doInBackground(UsbDevice... params) {
-            Exception result = null;
-            Log.d(TAG, "params -> " + params.toString());
-            try {
-                mReader.open(params[0]);
-            } catch (Exception e) {
-                result = e;
-            }
-
-            return result;
-        }
-        @Override
-        protected void onPostExecute(Exception result) {
-            if (result != null) {
-
-            } else {
-                Log.d(TAG, "Reader Name -->" + mReader.getReaderName());
-
-                int numSlots = mReader.getNumSlots();
-                Log.d(TAG, "Number of slots: " + numSlots);
-
-                //Add Slot items;
-//                mslo
-                // Remove all control codes
-//                mFeatures.clear();
-
-                Log.d(TAG, "next device -> " + deviceName2);
-                Log.d(TAG, "isOpened state -> " + isOpened);
-
-            }
-        }
-    }
     private class CloseTask extends AsyncTask<Void, Void, Void> {
 
         @Override
         protected Void doInBackground(Void... params) {
             mReader.close();
-            mReader.close();
+            mReader2.close();
             return null;
         }
 
         @Override
         protected void onPostExecute(Void result) {
-            mOpenButton.setEnabled(true);
         }
     }
 

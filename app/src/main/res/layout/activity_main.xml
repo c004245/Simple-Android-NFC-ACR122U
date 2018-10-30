@@ -5,20 +5,4 @@
     android:layout_height="wrap_content"
     android:orientation="horizontal">
 
-    <Spinner
-        android:id="@+id/main_spinner_reader"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"></Spinner>
-
-    <Button
-        android:id="@+id/main_button_list"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="List"></Button>
-
-    <Button
-        android:id="@+id/main_button_open"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Open"></Button>
 </LinearLayout>
