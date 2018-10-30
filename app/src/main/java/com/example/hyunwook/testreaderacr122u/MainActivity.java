@@ -15,6 +15,7 @@ import android.util.Log;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.Spinner;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.acs.smartcard.Features;
@@ -47,6 +48,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        TextView resText = findViewById(R.id.resultText);
         mManager = (UsbManager) getSystemService(Context.USB_SERVICE);
 
         //Initialize reader
@@ -66,7 +68,7 @@ public class MainActivity extends AppCompatActivity {
                 }
 
                 if (currState == Reader.CARD_PRESENT) {
-                    Log.d(TAG, "Ready to read...");
+                    Log.d(TAG, "Ready to read... 출근입니다.");
                         final byte[] command = {(byte) 0xFF, (byte) 0xCA, (byte) 0x00, (byte) 0x00, (byte) 0x00};
 
                         final byte[] response = new byte[256];
@@ -84,7 +86,16 @@ public class MainActivity extends AppCompatActivity {
 
                                 }
                                 try {
-                                    Log.d(TAG, "Data --->" + Long.parseLong(uid.toString(), 16));
+                                    runOnUiThread(new Runnable() {
+                                                      @Override
+
+                                                      public void run() {
+                                                          Long result = Long.parseLong(uid.toString(), 16);
+                                                          Log.d(TAG, "Data --->" + result);
+//                                                          Long result = Long.parseLong(uid.toString(), 16));
+                                                          resText.setText(String.valueOf(result) + "--" + "출근");
+                                                      }
+                                                  });
                                 } catch (NumberFormatException e) {
                                     Looper.prepare();
                                     Toast.makeText(getApplicationContext(), "인식 실패, 다시 찍어주세요.", Toast.LENGTH_LONG);
@@ -117,7 +128,7 @@ public class MainActivity extends AppCompatActivity {
                 }
 
                 if (currState == Reader.CARD_PRESENT) {
-                    Log.d(TAG, "Ready to read2...");
+                    Log.d(TAG, "Ready to read2... 퇴근입니다.");
                     final byte[] command = {(byte) 0xFF, (byte) 0xCA, (byte) 0x00, (byte) 0x00, (byte) 0x00};
 
                     final byte[] response = new byte[256];
@@ -135,7 +146,17 @@ public class MainActivity extends AppCompatActivity {
 
                             }
                             try {
-                                Log.d(TAG, "Data2 --->" + Long.parseLong(uid.toString(), 16));
+                                runOnUiThread(new Runnable() {
+                                    @Override
+
+                                    public void run() {
+                                        Long result = Long.parseLong(uid.toString(), 16);
+                                        Log.d(TAG, "Data --->" + result);
+//                                                          Long result = Long.parseLong(uid.toString(), 16));
+                                        resText.setText(String.valueOf(result) + "--" + "퇴근");
+                                    }
+                                });
+//                                Log.d(TAG, "Data2 --->" + Long.parseLong(uid.toString(), 16));
                             } catch (NumberFormatException e) {
                                 Looper.prepare();
                                 Toast.makeText(getApplicationContext(), "인식 실패, 다시 찍어주세요.", Toast.LENGTH_LONG);
@@ -188,7 +209,7 @@ public class MainActivity extends AppCompatActivity {
                     if (deviceName.equals(device.getDeviceName())) {
 
                         //Request permission
-                        mManager.requestPermission(device, mPermissionIntent);
+//                        mManager.requestPermission(device, mPermissionIntent);
 
                         break;
                     }
@@ -318,7 +339,6 @@ public class MainActivity extends AppCompatActivity {
 
                             break;
                         }
-//                        mManager.requestPermission(device, mPermissionIntent);
 
                     }
                 }
