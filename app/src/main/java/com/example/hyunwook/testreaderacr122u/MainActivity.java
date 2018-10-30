@@ -12,9 +12,12 @@ import android.os.Looper;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.Spinner;
 import android.widget.Toast;
 
+import com.acs.smartcard.Features;
 import com.acs.smartcard.Reader;
 import com.acs.smartcard.ReaderException;
 
@@ -26,7 +29,14 @@ public class MainActivity extends AppCompatActivity {
     private UsbManager mManager;
 
     private Reader mReader;
+
+    private ArrayAdapter<String> mReaderAdapter; //장치 목록 어댑
     private PendingIntent mPermissionIntent;
+
+    private Spinner mReaderSpinner;
+
+    private Features mFeatures = new Features();
+
     private static final String[] stateStrings = { "Unknown", "Absent",
             "Present", "Swallowed", "Powered", "Negotiable", "Specific" };
 
@@ -103,6 +113,61 @@ public class MainActivity extends AppCompatActivity {
         filter.addAction(UsbManager.ACTION_USB_DEVICE_DETACHED);
         registerReceiver(mReceiver, filter);
 
+        //Initialize reader spinner
+        mReaderAdapter = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_item);
+
+        for (UsbDevice device : mManager.getDeviceList().values()) {
+            if (mReader.isSupported(device)) {
+                mReaderAdapter.add(device.getDeviceName());
+                Log.d(TAG, "device name -->" + device.getDeviceName());
+            }
+        }
+        mReaderSpinner = (Spinner) findViewById(R.id.main_spinner_reader);
+        mReaderSpinner.setAdapter(mReaderAdapter);
+
+        mListButton = (Button) findViewById(R.id.main_button_list);
+        mListButton.setOnClickListener(l -> {
+            mReaderAdapter.clear();
+            for (UsbDevice device : mManager.getDeviceList().values()) {
+                if (mReader.isSupported(device)) {
+                    mReaderAdapter.add(device.getDeviceName());
+                    Log.d(TAG, "list device getname ->" + device.getDeviceName());
+                }
+            }
+
+        });
+
+        //Open
+        mOpenButton = (Button) findViewById(R.id.main_button_open);
+        mOpenButton.setOnClickListener(l -> {
+            boolean requested = false;
+
+            //disable open button
+            mOpenButton.setEnabled(false);
+            String deviceName = (String) mReaderSpinner.getSelectedItem();
+
+            Log.d(TAG, "deviceName --->" + deviceName); //선택된 장치
+            if (deviceName != null) {
+
+                for (UsbDevice device : mManager.getDeviceList().values()) {
+
+                    //device name is found
+                    if (deviceName.equals(device.getDeviceName())) {
+
+                        //Request permission
+                        mManager.requestPermission(device, mPermissionIntent);
+
+                        requested = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!requested) {
+                //enable open button
+                mOpenButton.setEnabled(true);
+            }
+        });
 
 
 
@@ -122,8 +187,30 @@ public class MainActivity extends AppCompatActivity {
 
                         if (device != null) {
                             //Open Reader
+                            Log.d(TAG, "OpenTask ...");
                             new OpenTask().execute(device);
                         }
+
+                    } else {
+                        mOpenButton.setEnabled(true);
+                    }
+                }
+            } else if (UsbManager.ACTION_USB_DEVICE_DETACHED.equals(action)) {
+                synchronized (this) {
+                    //update reader list
+                    Log.d(TAG, "update reader list...");
+                    mReaderAdapter.clear();
+
+                    for (UsbDevice device : mManager.getDeviceList().values()) {
+                        if (mReader.isSupported(device)) {
+                            mReaderAdapter.add(device.getDeviceName());
+                        }
+                    }
+
+                    UsbDevice device = (UsbDevice) intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
+
+                    if (device != null && device.equals(mReader.getDevice())) {
+                        new CloseTask().execute();
 
                     }
                 }
@@ -158,8 +245,34 @@ public class MainActivity extends AppCompatActivity {
 
                 //Add Slot items;
 //                mslo
-                
+                // Remove all control codes
+                mFeatures.clear();
+
+
+
             }
         }
+    }
+
+    private class CloseTask extends AsyncTask<Void, Void, Void> {
+
+        @Override
+        protected Void doInBackground(Void... params) {
+            mReader.close();
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(Void result) {
+            mOpenButton.setEnabled(true);
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        mReader.close();
+
+        unregisterReceiver(mReceiver);
+        super.onDestroy();
     }
 }
