@@ -28,7 +28,8 @@ public class MainActivity extends AppCompatActivity {
 
     private UsbManager mManager;
 
-    private Reader mReader;
+    private Reader mReader; //출근 장치
+    private Reader mReader2;
 
     private ArrayAdapter<String> mReaderAdapter; //장치 목록 어댑
     private PendingIntent mPermissionIntent;
@@ -113,6 +114,62 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        //Initialize reader
+        mReader2 = new Reader(mManager);
+        mReader2.setOnStateChangeListener(new Reader.OnStateChangeListener() {
+            @Override
+            public void onStateChange(int slotNum, int prevState, int currState) {
+
+                if (prevState < Reader.CARD_UNKNOWN
+                        || prevState > Reader.CARD_SPECIFIC) {
+                    prevState = Reader.CARD_UNKNOWN;
+                }
+
+                if (currState < Reader.CARD_UNKNOWN
+                        || currState > Reader.CARD_SPECIFIC) {
+                    currState = Reader.CARD_UNKNOWN;
+                }
+
+                // Create output string
+                final String outputString = "Slot " + slotNum + ": "
+                        + stateStrings[prevState] + " -> "
+                        + stateStrings[currState];
+
+                if (currState == Reader.CARD_PRESENT) {
+                    Log.d(TAG, "Ready to read2...");
+                    final byte[] command = {(byte) 0xFF, (byte) 0xCA, (byte) 0x00, (byte) 0x00, (byte) 0x00};
+
+                    final byte[] response = new byte[256];
+                    try {
+                        int byteCount = mReader2.control(slotNum, Reader.IOCTL_CCID_ESCAPE,
+                                command, command.length, response, response.length);
+
+                        //get UID
+                        StringBuffer uid = new StringBuffer();
+
+                        for (int i = 0; i < (byteCount -2); i++) {
+                            uid.append(String.format("%02X", response[i]));
+
+                            if (i < byteCount -3) {
+
+                            }
+                            try {
+                                Log.d(TAG, "Data2 --->" + Long.parseLong(uid.toString(), 16));
+                            } catch (NumberFormatException e) {
+                                Looper.prepare();
+                                Toast.makeText(getApplicationContext(), "인식 실패, 다시 찍어주세요.", Toast.LENGTH_LONG);
+                                Looper.loop();
+                            }
+                        }
+
+                    } catch (ReaderException e) {
+                        e.printStackTrace();
+                    }
+                }
+
+            }
+        });
+
         //Register receiver for USB permission
         mPermissionIntent = PendingIntent.getBroadcast(this, 0, new Intent(ACTION_USB_PERMISSION), 0);
         IntentFilter filter = new IntentFilter();
@@ -188,36 +245,9 @@ public class MainActivity extends AppCompatActivity {
                         requested = true;
                         break;
                     }
-
-                  /*  if (deviceName2.equals(device.getDeviceName())) {
-                        //Request permission
-                        Log.d(TAG, "Device 2 -> " +device.getDeviceName());
-                        mManager.requestPermission(device, mPermissionIntent);
-
-                        requested = true;
-                        break;
-                    }*/
                 }
             }
-
         }
-
-
-        mListButton = (Button) findViewById(R.id.main_button_list);
-        mListButton.setOnClickListener(l -> {
-            mReaderAdapter.clear();
-            for (UsbDevice device : mManager.getDeviceList().values()) {
-                if (mReader.isSupported(device)) {
-                    mReaderAdapter.add(device.getDeviceName());
-                    Log.d(TAG, "list device getname ->" + device.getDeviceName());
-                }
-            }
-
-        });
-
-
-
-
     }
 
     //USB Receiver
@@ -235,7 +265,12 @@ public class MainActivity extends AppCompatActivity {
                         if (device != null) {
                             //Open Reader
                             Log.d(TAG, "OpenTask ...>" + device.getDeviceName());
-                            new OpenTask().execute(device);
+                            /*if (isOpened) {
+                                new OpenTask2().execute(device);
+                            } else {*/
+                                new OpenTask().execute(device);
+//                            }
+
                         }
 
                     } else {
@@ -271,9 +306,13 @@ public class MainActivity extends AppCompatActivity {
         @Override
         protected Exception doInBackground(UsbDevice... params) {
             Exception result = null;
-
+            Log.d(TAG, "params -> " + isOpened);
             try {
-                mReader.open(params[0]);
+                if (!isOpened) {
+                    mReader.open(params[0]);
+                } else {
+                    mReader2.open(params[0]);
+                }
             } catch (Exception e) {
                 result = e;
             }
@@ -304,13 +343,13 @@ public class MainActivity extends AppCompatActivity {
 
                         if (deviceName2.equals(device.getDeviceName())) {
                             //Request permission
+                            isOpened =true;
                             Log.d(TAG, "Device 2 -> " + device.getDeviceName());
                             mManager.requestPermission(device, mPermissionIntent);
 
                             break;
                         }
-                        isOpened = true;
-                        mManager.requestPermission(device, mPermissionIntent);
+//                        mManager.requestPermission(device, mPermissionIntent);
 
                     }
                 }
@@ -318,10 +357,47 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    //Reader Device OpenTask
+    private class OpenTask2 extends AsyncTask<UsbDevice, Void, Exception> {
+
+        @Override
+        protected Exception doInBackground(UsbDevice... params) {
+            Exception result = null;
+            Log.d(TAG, "params -> " + params.toString());
+            try {
+                mReader.open(params[0]);
+            } catch (Exception e) {
+                result = e;
+            }
+
+            return result;
+        }
+        @Override
+        protected void onPostExecute(Exception result) {
+            if (result != null) {
+
+            } else {
+                Log.d(TAG, "Reader Name -->" + mReader.getReaderName());
+
+                int numSlots = mReader.getNumSlots();
+                Log.d(TAG, "Number of slots: " + numSlots);
+
+                //Add Slot items;
+//                mslo
+                // Remove all control codes
+//                mFeatures.clear();
+
+                Log.d(TAG, "next device -> " + deviceName2);
+                Log.d(TAG, "isOpened state -> " + isOpened);
+
+            }
+        }
+    }
     private class CloseTask extends AsyncTask<Void, Void, Void> {
 
         @Override
         protected Void doInBackground(Void... params) {
+            mReader.close();
             mReader.close();
             return null;
         }
@@ -335,6 +411,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         mReader.close();
+        mReader2.close();
 
         unregisterReceiver(mReceiver);
         super.onDestroy();
